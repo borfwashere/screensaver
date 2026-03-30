@@ -188,6 +188,15 @@
             return tex;
         }
 
+        // --- FUNCIÓN PANTALLA COMPLETA ---
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log(`Error al intentar activar pantalla completa: ${err.message}`);
+                });
+            }
+        }
+
         function init() {
             sceneMaze = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
@@ -233,10 +242,14 @@
             camera.position.set(CELL, 0, CELL + 0.1); camera.rotation.y = Math.PI; targetRotation = Math.PI;
 
             window.addEventListener('keydown', e => { 
+                toggleFullScreen(); // Activa pantalla completa al presionar cualquier tecla
                 if (!systemStarted && (e.code === 'KeyW' || e.code === 'KeyA' || e.code === 'KeyD')) { systemStarted = true; }
                 keys[e.code] = true; lastInputTime = clock.getElapsedTime(); 
             });
             window.addEventListener('keyup', e => keys[e.code] = false);
+
+            // También activa al hacer click
+            window.addEventListener('mousedown', toggleFullScreen);
             
             window.speechSynthesis.getVoices();
             animate();
@@ -319,20 +332,14 @@
 
         // --- PROTOCOLO DE PROTECCIÓN DE CÓDIGO ---
         document.onkeydown = function(e) {
-            // Bloquea F12
             if(e.keyCode == 123) return false;
-            // Bloquea Ctrl+Shift+I (Inspect)
             if(e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false;
-            // Bloquea Ctrl+Shift+J (Console)
             if(e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false;
-            // Bloquea Ctrl+U (View Source)
             if(e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false;
         };
 
-        // Anti-Console Glitch
         setInterval(function(){
             if(window.outerHeight - window.innerHeight > 200 || window.outerWidth - window.innerWidth > 200){
-                // Si abren la consola, opcionalmente puedes redirigir o limpiar
                 console.clear();
             }
         }, 1000);
