@@ -9,6 +9,7 @@
             margin: 0; overflow: hidden; background: #000; 
             transition: background 3s; -webkit-user-select: none; 
             user-select: none; overscroll-behavior: none;
+            touch-action: none; /* Crucial para iOS */
         }
         #truman-layer {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -35,10 +36,10 @@
             font-size: 24px; font-weight: bold; color: #000; touch-action: manipulation;
         }
         .m-btn:active { border-color: #808080 #fff #fff #808080; padding: 2px 0 0 2px; }
-        canvas { display: block; }
+        canvas { display: block; touch-action: none; }
     </style>
 </head>
-<body oncontextmenu="return false;"> 
+<body oncontextmenu="return false;" onkeydown="return false;"> 
     <div id="truman-layer">
         <img id="truman-image" src="adsasd.jpg" alt="The Truman Show Exit">
         <div id="truman-text"></div>
@@ -53,6 +54,22 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
+        // --- PROTECCIÓN DE CÓDIGO ---
+        (function() {
+            // Bloquear clic derecho
+            document.addEventListener('contextmenu', e => e.preventDefault());
+            // Bloquear atajos comunes de inspección
+            document.onkeydown = function(e) {
+                if (e.keyCode == 123 || // F12
+                    (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74 || e.keyCode == 67)) || // Ctrl+Shift+I/J/C
+                    (e.ctrlKey && e.keyCode == 85)) { // Ctrl+U
+                    return false;
+                }
+            };
+            // Anti-debugger (pausa la ejecución si abren consola)
+            setInterval(function() { debugger; }, 1000);
+        })();
+
         let sceneMaze, camera, renderer, clock;
         let wallTexData, lastCellIdx = {x:-1, z:-1};
         const CELL = 4;
@@ -98,7 +115,6 @@
             setTimeout(() => { location.reload(); }, 10000);
         }
 
-        // --- ENTIDADES RESTAURADAS ---
         function getDynamicColor(offset) {
             return `hsl(${(clock.getElapsedTime() * 60 + offset) % 360}, 100%, 50%)`;
         }
@@ -184,17 +200,32 @@
         function init() {
             sceneMaze = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ antialias: false });
+            
+            // CORRECCIÓN IPHONE: Ajustes de contexto y potencia
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: false, 
+                alpha: true,
+                powerPreference: "high-performance"
+            });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
             clock = new THREE.Clock();
 
             const bindBtn = (id, key) => {
                 const el = document.getElementById(id);
-                el.addEventListener('touchstart', (e) => { e.preventDefault(); if (!systemStarted) systemStarted = true; keys[key] = true; lastInputTime = clock.getElapsedTime(); });
-                el.addEventListener('touchend', (e) => { e.preventDefault(); keys[key] = false; });
+                el.addEventListener('touchstart', (e) => { 
+                    e.preventDefault(); 
+                    if (!systemStarted) systemStarted = true; 
+                    keys[key] = true; 
+                    lastInputTime = clock.getElapsedTime(); 
+                }, {passive: false});
+                el.addEventListener('touchend', (e) => { e.preventDefault(); keys[key] = false; }, {passive: false});
             };
-            window.addEventListener('touchstart', function initTouch() { document.getElementById('mobile-ui').style.display = 'flex'; window.removeEventListener('touchstart', initTouch); });
+            window.addEventListener('touchstart', function initTouch() { 
+                document.getElementById('mobile-ui').style.display = 'flex'; 
+                window.removeEventListener('touchstart', initTouch); 
+            });
             bindBtn('m-left', 'KeyA'); bindBtn('m-up', 'KeyW'); bindBtn('m-right', 'KeyD');
 
             const geo = new THREE.BufferGeometry(); const pos = [], cols = [];
@@ -223,9 +254,16 @@
             floor.rotation.x = -Math.PI/2; floor.position.y = -2; sceneMaze.add(floor);
 
             camera.position.set(CELL, 0, CELL + 0.1); camera.rotation.y = Math.PI; targetRotation = Math.PI;
-            window.addEventListener('keydown', e => { if(!systemStarted && ['KeyW','KeyA','KeyD'].includes(e.code)) systemStarted=true; keys[e.code]=true; lastInputTime=clock.getElapsedTime(); });
+            window.addEventListener('keydown', e => { 
+                if(!systemStarted && ['KeyW','KeyA','KeyD'].includes(e.code)) systemStarted=true; 
+                keys[e.code]=true; lastInputTime=clock.getElapsedTime(); 
+            });
             window.addEventListener('keyup', e => keys[e.code]=false);
-            window.addEventListener('resize', () => { camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); });
+            window.addEventListener('resize', () => { 
+                camera.aspect=window.innerWidth/window.innerHeight; 
+                camera.updateProjectionMatrix(); 
+                renderer.setSize(window.innerWidth,window.innerHeight); 
+            });
             animate();
         }
 
@@ -259,7 +297,6 @@
                             let fSides = paths.filter(p => Math.abs(p - (curA + Math.PI)) > 0.1);
                             targetRotation = fSides.length > 0 ? fSides[Math.floor(Math.random()*fSides.length)] : paths[0];
                         }
-                        // --- SPAWN DE EVENTOS RESTAURADO ---
                         if (!activeEntity) {
                             let r = Math.random();
                             if (r < 0.05) spawnGlitch(camera.position.x - Math.sin(targetRotation)*CELL*2, camera.position.z - Math.cos(targetRotation)*CELL*2);
@@ -282,7 +319,6 @@
                 else camera.position.x += (gx*CELL-camera.position.x)*0.15;
                 camera.rotation.y += (targetRotation - camera.rotation.y)*0.15;
             }
-            // --- ANIMACIÓN DE ENTIDADES RESTAURADA ---
             if (activeEntity) {
                 const data = activeEntity.userData; data.draw(getDynamicColor(data.offset));
                 activeEntity.material.map.needsUpdate = true; activeEntity.material.rotation += 0.05; 
