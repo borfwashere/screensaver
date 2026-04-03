@@ -2,45 +2,52 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>BORSEC_OS: V89_TRUMAN_FINAL</title>
     <style>
         body { 
-            margin: 0; 
-            overflow: hidden; 
-            background: #000; 
-            transition: background 3s; 
-            -webkit-user-select: none; 
-            -moz-user-select: none; 
-            -ms-user-select: none; 
-            user-select: none; 
+            margin: 0; overflow: hidden; background: #000; 
+            transition: background 3s; -webkit-user-select: none; 
+            user-select: none; overscroll-behavior: none;
         }
-        
         #truman-layer {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: #000; display: none; flex-direction: column;
             align-items: center; justify-content: center; z-index: 100;
         }
-        #truman-image { 
-            max-width: 90%; 
-            max-height: 70vh; 
-            image-rendering: pixelated; 
-        }
+        #truman-image { max-width: 90%; max-height: 70vh; image-rendering: pixelated; }
         #truman-text {
-            color: #fff; 
-            font-family: 'Courier New', monospace; 
-            margin-top: 30px; 
-            font-weight: bold; 
-            font-size: 1.1em; 
-            text-align: center;
-            letter-spacing: 2px;
-            text-transform: uppercase;
+            color: #fff; font-family: 'Courier New', monospace; 
+            margin-top: 30px; font-weight: bold; font-size: 1.1em; 
+            text-align: center; letter-spacing: 2px; text-transform: uppercase;
         }
+        #mobile-ui {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            display: none; flex-direction: row; gap: 15px; z-index: 999;
+            padding: 10px; background: #c0c0c0; border: 2px solid #fff;
+            border-right-color: #808080; border-bottom-color: #808080;
+            box-shadow: 2px 2px 0 #000;
+        }
+        .m-btn {
+            width: 65px; height: 65px; background: #c0c0c0;
+            border: 3px solid; border-color: #fff #808080 #808080 #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; font-weight: bold; color: #000; touch-action: manipulation;
+        }
+        .m-btn:active { border-color: #808080 #fff #fff #808080; padding: 2px 0 0 2px; }
         canvas { display: block; }
     </style>
 </head>
-<body oncontextmenu="return false;"> <div id="truman-layer">
+<body oncontextmenu="return false;"> 
+    <div id="truman-layer">
         <img id="truman-image" src="adsasd.jpg" alt="The Truman Show Exit">
         <div id="truman-text"></div>
+    </div>
+
+    <div id="mobile-ui">
+        <div class="m-btn" id="m-left">←</div>
+        <div class="m-btn" id="m-up">↑</div>
+        <div class="m-btn" id="m-right">→</div>
     </div>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -52,8 +59,7 @@
         const keys = {};
         let targetRotation = 0, currentMoveSpeed = 0.14;
         let lastInputTime = 0, systemStarted = false;
-        let activeEntity = null, bootSprite = null;
-        let hasExited = false;
+        let activeEntity = null, bootSprite = null, hasExited = false;
 
         const mapMaze = [
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
@@ -76,44 +82,25 @@
 
         function triggerTrumanExit() {
             if (hasExited) return;
-            hasExited = true;
-            currentMoveSpeed = 0;
-            systemStarted = false;
-
-            const layer = document.getElementById('truman-layer');
-            layer.style.display = 'flex';
-
+            hasExited = true; currentMoveSpeed = 0; systemStarted = false;
+            document.getElementById('mobile-ui').style.display = 'none';
+            document.getElementById('truman-layer').style.display = 'flex';
             const text = "Por si no los vuelvo a ver: buenos días, buenas tardes y buenas noches.";
             const msg = new SpeechSynthesisUtterance(text);
             msg.lang = 'es-ES';
-
             const voices = window.speechSynthesis.getVoices();
-            const maleVoice = voices.find(v => v.lang.includes('es') && (v.name.toLowerCase().includes('microsoft david') || v.name.toLowerCase().includes('google') || v.name.toLowerCase().includes('male')));
+            const maleVoice = voices.find(v => v.lang.includes('es') && (v.name.toLowerCase().includes('david') || v.name.toLowerCase().includes('male')));
             if (maleVoice) msg.voice = maleVoice;
-            msg.pitch = 0.8; 
-            msg.rate = 0.85; 
-
+            msg.pitch = 0.85; msg.rate = 0.9;
             window.speechSynthesis.speak(msg);
             document.getElementById('truman-text').innerText = text;
             renderer.setAnimationLoop(null);
-
-            // --- REINICIO AUTOMÁTICO TRAS 10 SEGUNDOS ---
-            setTimeout(() => {
-                location.reload();
-            }, 10000);
+            setTimeout(() => { location.reload(); }, 10000);
         }
 
-        function createWallTexture() {
-            const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128;
-            const ctx = canvas.getContext('2d');
-            const tex = new THREE.CanvasTexture(canvas);
-            tex.magFilter = THREE.NearestFilter; tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-            return { tex, canvas, ctx };
-        }
-
+        // --- ENTIDADES RESTAURADAS ---
         function getDynamicColor(offset) {
-            const hue = (clock.getElapsedTime() * 60 + offset) % 360;
-            return `hsl(${hue}, 100%, 50%)`;
+            return `hsl(${(clock.getElapsedTime() * 60 + offset) % 360}, 100%, 50%)`;
         }
 
         function spawnGlitch(x, z) {
@@ -122,10 +109,10 @@
             const cx = c.getContext('2d'); cx.imageSmoothingEnabled = false; cx.lineWidth = 2;
             function drawCube(col) {
                 cx.clearRect(0,0,128,128); cx.strokeStyle = col; cx.beginPath();
-                cx.moveTo(40, 40); cx.lineTo(88, 40); cx.lineTo(88, 88); cx.lineTo(40, 88); cx.closePath();
-                cx.moveTo(55, 55); cx.lineTo(103, 55); cx.lineTo(103, 103); cx.lineTo(55, 103); cx.closePath();
-                cx.moveTo(40, 40); cx.lineTo(55, 55); cx.moveTo(88, 40); cx.lineTo(103, 55);
-                cx.moveTo(88, 88); cx.lineTo(103, 103); cx.moveTo(40, 88); cx.lineTo(55, 103); cx.stroke();
+                cx.moveTo(40,40); cx.lineTo(88,40); cx.lineTo(88,88); cx.lineTo(40,88); cx.closePath();
+                cx.moveTo(55,55); cx.lineTo(103,55); cx.lineTo(103,103); cx.lineTo(55,103); cx.closePath();
+                cx.moveTo(40,40); cx.lineTo(55,55); cx.moveTo(88,40); cx.lineTo(103,55);
+                cx.moveTo(88,88); cx.lineTo(103,103); cx.moveTo(40,88); cx.lineTo(55,103); cx.stroke();
             }
             const tex = new THREE.CanvasTexture(c); tex.magFilter = THREE.NearestFilter;
             activeEntity = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
@@ -137,10 +124,10 @@
         function spawnVaporSun(x, z) {
             if (activeEntity) return; 
             const c = document.createElement('canvas'); c.width = 128; c.height = 128;
-            const cx = c.getContext('2d'); cx.imageSmoothingEnabled = false; cx.lineWidth = 2;
+            const cx = c.getContext('2d'); cx.lineWidth = 2;
             function drawPyramid(col) {
                 cx.clearRect(0,0,128,128); cx.strokeStyle = col; cx.beginPath();
-                const top = {x: 64, y: 15}; const bL = {x: 20, y: 100}; const bR = {x: 108, y: 100}; const bC = {x: 64, y: 115};
+                const top = {x: 64, y: 15}, bL = {x: 20, y: 100}, bR = {x: 108, y: 100}, bC = {x: 64, y: 115};
                 cx.moveTo(bL.x, bL.y); cx.lineTo(bR.x, bR.y); cx.lineTo(bC.x, bC.y); cx.closePath();
                 cx.moveTo(bL.x, bL.y); cx.lineTo(top.x, top.y); cx.moveTo(bR.x, bR.y); cx.lineTo(top.x, top.y);
                 cx.moveTo(bC.x, bC.y); cx.lineTo(top.x, top.y); cx.stroke();
@@ -155,7 +142,7 @@
         function spawnMeshSphere(x, z) {
             if (activeEntity) return;
             const c = document.createElement('canvas'); c.width = 128; c.height = 128;
-            const cx = c.getContext('2d'); cx.imageSmoothingEnabled = false; cx.lineWidth = 2;
+            const cx = c.getContext('2d'); cx.lineWidth = 2;
             function drawSphere(col) {
                 cx.clearRect(0,0,128,128); cx.strokeStyle = col;
                 cx.beginPath(); cx.arc(64, 64, 55, 0, Math.PI*2); cx.stroke();
@@ -171,9 +158,17 @@
             sceneMaze.add(activeEntity);
         }
 
+        function createWallTexture() {
+            const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.magFilter = THREE.NearestFilter; tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+            return { tex, canvas, ctx };
+        }
+
         function createPixelLogoTexture() {
             const canvas = document.createElement('canvas'); canvas.width = 64; canvas.height = 64;
-            const cx = canvas.getContext('2d'); cx.imageSmoothingEnabled = false;
+            const cx = canvas.getContext('2d');
             function drawPixelPanel(x, y, w, h, fillCol) {
                 cx.fillStyle = "#000"; cx.fillRect(x, y, w, h);
                 cx.fillStyle = fillCol; cx.fillRect(x+2, y+2, w-4, h-4);
@@ -186,14 +181,6 @@
             return tex;
         }
 
-        function toggleFullScreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(err => {
-                    console.log(`Error: ${err.message}`);
-                });
-            }
-        }
-
         function init() {
             sceneMaze = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
@@ -201,6 +188,14 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
             clock = new THREE.Clock();
+
+            const bindBtn = (id, key) => {
+                const el = document.getElementById(id);
+                el.addEventListener('touchstart', (e) => { e.preventDefault(); if (!systemStarted) systemStarted = true; keys[key] = true; lastInputTime = clock.getElapsedTime(); });
+                el.addEventListener('touchend', (e) => { e.preventDefault(); keys[key] = false; });
+            };
+            window.addEventListener('touchstart', function initTouch() { document.getElementById('mobile-ui').style.display = 'flex'; window.removeEventListener('touchstart', initTouch); });
+            bindBtn('m-left', 'KeyA'); bindBtn('m-up', 'KeyW'); bindBtn('m-right', 'KeyD');
 
             const geo = new THREE.BufferGeometry(); const pos = [], cols = [];
             for (let i = 0; i < 8000; i++) {
@@ -219,63 +214,33 @@
             wallTexData = createWallTexture();
             const wallMat = new THREE.MeshBasicMaterial({ map: wallTexData.tex });
             wallTexData.tex.repeat.set(4, 4);
-            
-            for(let z=0; z<mapMaze.length; z++) {
-                for(let x=0; x<mapMaze[z].length; x++) {
-                    if(mapMaze[z][x] === 1) {
-                        const wall = new THREE.Mesh(new THREE.BoxGeometry(CELL, CELL, CELL), wallMat);
-                        wall.position.set(x * CELL, 0, z * CELL); sceneMaze.add(wall);
-                    }
-                }
-            }
+            mapMaze.forEach((row, z) => row.forEach((v, x) => { if(v===1){ const w=new THREE.Mesh(new THREE.BoxGeometry(CELL,CELL,CELL),wallMat); w.position.set(x*CELL,0,z*CELL); sceneMaze.add(w); }}));
 
             const cf = document.createElement('canvas'); cf.width = 2; cf.height = 2;
             const ctxf = cf.getContext('2d'); ctxf.fillStyle = '#ffffff'; ctxf.fillRect(0,0,1,1); ctxf.fillRect(1,1,1,1);
-            ctxf.fillStyle = '#000000'; ctxf.fillRect(1,0,1,1); ctxf.fillRect(0,1,1,1);
             const tf = new THREE.CanvasTexture(cf); tf.magFilter = THREE.NearestFilter; tf.wrapS = tf.wrapT = THREE.RepeatWrapping; tf.repeat.set(300, 300);
             const floor = new THREE.Mesh(new THREE.PlaneGeometry(1200, 1200), new THREE.MeshBasicMaterial({ map: tf }));
             floor.rotation.x = -Math.PI/2; floor.position.y = -2; sceneMaze.add(floor);
 
             camera.position.set(CELL, 0, CELL + 0.1); camera.rotation.y = Math.PI; targetRotation = Math.PI;
-
-            window.addEventListener('keydown', e => { 
-                toggleFullScreen();
-                if (!systemStarted && (e.code === 'KeyW' || e.code === 'KeyA' || e.code === 'KeyD')) { systemStarted = true; }
-                keys[e.code] = true; lastInputTime = clock.getElapsedTime(); 
-            });
-            window.addEventListener('keyup', e => keys[e.code] = false);
-            window.addEventListener('mousedown', toggleFullScreen);
-
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-            
-            window.speechSynthesis.getVoices();
+            window.addEventListener('keydown', e => { if(!systemStarted && ['KeyW','KeyA','KeyD'].includes(e.code)) systemStarted=true; keys[e.code]=true; lastInputTime=clock.getElapsedTime(); });
+            window.addEventListener('keyup', e => keys[e.code]=false);
+            window.addEventListener('resize', () => { camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); });
             animate();
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            const time = clock.getElapsedTime();
-            const dt = time - lastInputTime;
-
+            const time = clock.getElapsedTime(), dt = time - lastInputTime;
             if (bootSprite) {
-                if (systemStarted || time > 5) {
-                    bootSprite.material.opacity -= 0.05;
-                    if (bootSprite.material.opacity <= 0) { sceneMaze.remove(bootSprite); bootSprite = null; }
-                } else bootSprite.material.opacity = 0.8 + Math.sin(time * 10) * 0.2;
+                if (systemStarted || time > 5) { bootSprite.material.opacity -= 0.05; if (bootSprite.material.opacity <= 0) { sceneMaze.remove(bootSprite); bootSprite = null; } }
+                else bootSprite.material.opacity = 0.8 + Math.sin(time * 10) * 0.2;
             }
-
-            const hue = (time * 60) % 360;
             wallTexData.ctx.fillStyle = '#000'; wallTexData.ctx.fillRect(0,0,128,128);
-            wallTexData.ctx.strokeStyle = `hsl(${hue}, 100%, 50%)`; wallTexData.ctx.lineWidth = 12;
+            wallTexData.ctx.strokeStyle = `hsl(${(time*60)%360}, 100%, 50%)`; wallTexData.ctx.lineWidth = 12;
             wallTexData.ctx.strokeRect(0,0,128,128); wallTexData.tex.needsUpdate = true;
 
-            const gx = Math.round(camera.position.x / CELL);
-            const gz = Math.round(camera.position.z / CELL);
-
+            const gx = Math.round(camera.position.x / CELL), gz = Math.round(camera.position.z / CELL);
             if (mapMaze[gz] && mapMaze[gz][gx] === 2) { triggerTrumanExit(); return; }
 
             if (!hasExited) {
@@ -285,22 +250,21 @@
                     const dCenter = Math.sqrt(Math.pow(camera.position.x-gx*CELL,2)+Math.pow(camera.position.z-gz*CELL,2));
                     if (dCenter < 0.6 && (gx !== lastCellIdx.x || gz !== lastCellIdx.z)) {
                         lastCellIdx = {x:gx, z:gz};
-                        let curA = Math.round(targetRotation / (Math.PI/2)) * (Math.PI/2);
-                        let paths = [];
+                        let curA = Math.round(targetRotation / (Math.PI/2)) * (Math.PI/2), paths = [];
                         [0, Math.PI/2, -Math.PI/2, Math.PI].forEach(a => {
-                            let r = curA + a;
-                            let tx = gx - Math.round(Math.sin(r)), tz = gz - Math.round(Math.cos(r));
+                            let r=curA+a, tx=gx-Math.round(Math.sin(r)), tz=gz-Math.round(Math.cos(r));
                             if (mapMaze[tz] && mapMaze[tz][tx] !== 1) paths.push(r);
                         });
                         if (paths.length > 0) {
                             let fSides = paths.filter(p => Math.abs(p - (curA + Math.PI)) > 0.1);
                             targetRotation = fSides.length > 0 ? fSides[Math.floor(Math.random()*fSides.length)] : paths[0];
                         }
-                        if (!activeEntity) { 
-                            let choice = Math.random();
-                            if (choice < 0.05) spawnGlitch(camera.position.x - Math.sin(targetRotation)*CELL*2, camera.position.z - Math.cos(targetRotation)*CELL*2);
-                            else if (choice < 0.10) spawnMeshSphere(camera.position.x - Math.sin(targetRotation)*CELL*2, camera.position.z - Math.cos(targetRotation)*CELL*2);
-                            else if (choice < 0.15) spawnVaporSun(camera.position.x - Math.sin(targetRotation)*CELL*2, camera.position.z - Math.cos(targetRotation)*CELL*2);
+                        // --- SPAWN DE EVENTOS RESTAURADO ---
+                        if (!activeEntity) {
+                            let r = Math.random();
+                            if (r < 0.05) spawnGlitch(camera.position.x - Math.sin(targetRotation)*CELL*2, camera.position.z - Math.cos(targetRotation)*CELL*2);
+                            else if (r < 0.10) spawnMeshSphere(camera.position.x - Math.sin(targetRotation)*CELL*2, camera.position.z - Math.cos(targetRotation)*CELL*2);
+                            else if (r < 0.15) spawnVaporSun(camera.position.x - Math.sin(targetRotation)*CELL*2, camera.position.z - Math.cos(targetRotation)*CELL*2);
                         }
                     }
                     cfX = -Math.sin(targetRotation) * currentMoveSpeed; cfZ = -Math.cos(targetRotation) * currentMoveSpeed;
@@ -318,31 +282,16 @@
                 else camera.position.x += (gx*CELL-camera.position.x)*0.15;
                 camera.rotation.y += (targetRotation - camera.rotation.y)*0.15;
             }
-
+            // --- ANIMACIÓN DE ENTIDADES RESTAURADA ---
             if (activeEntity) {
-                const data = activeEntity.userData;
-                data.draw(getDynamicColor(data.offset));
-                activeEntity.material.map.needsUpdate = true;
-                activeEntity.material.rotation += 0.05; 
-                activeEntity.position.y = (activeEntity.scale.x > 3.8) ? -0.3 + Math.sin(time*2) * 0.15 : -0.7 + Math.sin(time*3) * 0.05;
-                if (time - activeEntity.userData.birth > 5) { sceneMaze.remove(activeEntity); activeEntity = null; }
+                const data = activeEntity.userData; data.draw(getDynamicColor(data.offset));
+                activeEntity.material.map.needsUpdate = true; activeEntity.material.rotation += 0.05; 
+                activeEntity.position.y = -0.3 + Math.sin(time*2) * 0.15;
+                if (time - data.birth > 5) { sceneMaze.remove(activeEntity); activeEntity = null; }
             }
             renderer.render(sceneMaze, camera);
         }
         window.onload = init;
-
-        document.onkeydown = function(e) {
-            if(e.keyCode == 123) return false;
-            if(e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false;
-            if(e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false;
-            if(e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false;
-        };
-
-        setInterval(function(){
-            if(window.outerHeight - window.innerHeight > 200 || window.outerWidth - window.innerWidth > 200){
-                console.clear();
-            }
-        }, 1000);
     </script>
 </body>
 </html>
